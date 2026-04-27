@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Contagem de Carboidratos</title>
+  <style>
+    body { font-family: Arial; max-width: 900px; margin: 20px auto; }
+    h1, h2 { text-align: center; }
+    .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; }
+    .linha { margin-bottom: 10px; }
+    label { display: inline-block; width: 180px; }
+    input, select { padding: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    button { padding: 6px 12px; margin-top: 10px; }
+    #app { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Contagem de Carboidratos</h1>
+
+  <!-- LOGIN -->
+  <div id="auth" class="box">
+    <h2>Login</h2>
+    <div class="linha">
+      <label>E-mail:</label>
+      <input id="login_email" type="email">
+    </div>
+    <div class="linha">
+      <label>Senha:</label>
+      <input id="login_senha" type="password">
+    </div>
+    <button onclick="login()">Entrar</button>
+
+    <h3>Ou cadastre-se</h3>
+    <div class="linha">
+      <label>Nome:</label>
+      <input id="cad_nome">
+    </div>
+    <div class="linha">
+      <label>E-mail:</label>
+      <input id="cad_email" type="email">
+    </div>
+    <div class="linha">
+      <label>Senha:</label>
+      <input id="cad_senha" type="password">
+    </div>
+    <button onclick="cadastrar()">Cadastrar</button>
+
+    <pre id="auth_msg"></pre>
+  </div>
+
+  <!-- APLICAÇÃO -->
+  <div id="app">
+    <div class="box">
+      <h2>Cálculo</h2>
+      <div class="linha">
+        <label>Glicemia atual (VG):</label>
+        <input id="glicemia" type="number">
+      </div>
+      <div class="linha">
+        <label>Alvo glicêmico (AG):</label>
+        <input id="alvo" type="number" value="120">
+      </div>
+      <div class="linha">
+        <label>Fator sensibilidade (FSI):</label>
+        <input id="fsi" type="number" value="40">
+      </div>
+      <div class="linha">
+        <label>Fator carbo (g/unid):</label>
+        <input id="fc" type="number" value="15">
+      </div>
+
+      <hr>
+
+      <h3>Alimentos da refeição</h3>
+
+      <div class="linha">
+        <label>Alimento:</label>
+        <select id="alimento"></select>
+      </div>
+      <div class="linha">
+        <label>Quantidade (g):</label>
+        <input id="quantidade" type="number">
+      </div>
+      <button onclick="adicionar()">Adicionar alimento</button>
+
+      <table id="tabela">
+        <thead>
+          <tr>
+            <th>Alimento</th>
+            <th>Quantidade (g)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <button onclick="calcular()">Calcular dose</button>
+
+      <h3>Resultado</h3>
+      <pre id="resultado"></pre>
+    </div>
+
+    <div class="box">
+      <h2>Histórico</h2>
+      <button onclick="carregarHistorico()">Atualizar histórico</button>
+      <table id="tabela_hist">
+        <thead>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Glicemia</th>
+            <th>Carbo total</th>
+            <th>Ins. carbo</th>
+            <th>Correção</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API = "http://127.0.0.1:8000";
+    let token = null;
+    let tipo = null;
+    let alimentos = [];
+
+    // CADASTRAR
+    async function cadastrar() {
+      const nome = document.getElementById("cad_nome").value;
+      const email = document.getElementById("cad_email").value;
+      const senha = document.getElementById("cad_senha").value;
+
+      const resp = await fetch(API + "/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, email, senha })
+      });
+
+      const dados = await resp.json();
+      document.getElementById("auth_msg").textContent = JSON.stringify(dados, null, 2);
+    }
+
+    // LOGIN
+    async function login() {
+      const email = document.getElementById("login_email").value;
+      const senha = document.getElementById("login_senha").value;
+
+      const form = new URLSearchParams();
+      form.append("username", email);
+      form.append("password", senha);
+
+      const resp = await fetch(API + "/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form
+      });
+
+      if (!resp.ok) {
+        document.getElementById("auth_msg").textContent = "Login inválido";
+        return;
+      }
+
+      const dados = await resp.json();
+      token = dados.access_token;
+      tipo = dados.tipo;
+
+      document.getElementById("auth").style.display = "none";
+      document.getElementById("app").style.display = "block";
+
+      carregarLista();
+      carregarHistorico();
+    }
+
+    // LISTA DE ALIMENTOS
+    async function carregarLista() {
+      const resp = await fetch(API + "/alimentos");
+      const lista = await resp.json();
+      const select = document.getElementById("alimento");
+      select.innerHTML = "";
+      lista.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item;
+        opt.textContent = item;
+        select.appendChild(opt);
+      });
+    }
+
+    // ADICIONAR ALIMENTO
+    function adicionar() {
+      const nome = document.getElementById("alimento").value;
+      const quantidade = Number(document.getElementById("quantidade").value);
+      if (!quantidade || quantidade <= 0) {
+        alert("Informe uma quantidade válida.");
+        return;
+      }
+      alimentos.push({ nome, quantidade });
+
+      const tbody = document.querySelector("#tabela tbody");
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${nome}</td><td>${quantidade}</td>`;
+      tbody.appendChild(tr);
+
+      document.getElementById("quantidade").value = "";
+    }
+
+    // CALCULAR
+    async function calcular() {
+      const glicemia = Number(document.getElementById("glicemia").value);
+      const alvo = Number(document.getElementById("alvo").value);
+      const fsi = Number(document.getElementById("fsi").value);
+      const fc = Number(document.getElementById("fc").value);
+
+      if (!glicemia || !alvo || !fsi || !fc || alimentos.length === 0) {
+        alert("Preencha tudo e adicione alimentos.");
+        return;
+      }
+
+      const payload = {
+        glicemia,
+        alvo,
+        fator_sensibilidade: fsi,
+        fator_carbo: fc,
+        alimentos
+      };
+
+      const resp = await fetch(API + "/calcular", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const dados = await resp.json();
+
+      document.getElementById("resultado").textContent =
+        "Carbo total: " + dados.carbo_total.toFixed(1) + " g\n" +
+        "Insulina por carbo: " + dados.insulina_carbo.toFixed(2) + " unid\n" +
+        "Correção: " + dados.correcao.toFixed(2) + " unid\n" +
+        "Dose total: " + dados.dose_total.toFixed(2) + " unid\n";
+
+      carregarHistorico();
+      alimentos = [];
+      document.querySelector("#tabela tbody").innerHTML = "";
+    }
+
+    // HISTÓRICO
+    async function carregarHistorico() {
+      const resp = await fetch(API + "/historico", {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      const lista = await resp.json();
+      const tbody = document.querySelector("#tabela_hist tbody");
+      tbody.innerHTML = "";
+      lista.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r.data_hora}</td>
+          <td>${r.glicemia}</td>
+          <td>${r.carbo_total.toFixed(1)}</td>
+          <td>${r.insulina_carbo.toFixed(2)}</td>
+          <td>${r.insulina_correcao.toFixed(2)}</td>
+          <td>${r.insulina_total.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>
