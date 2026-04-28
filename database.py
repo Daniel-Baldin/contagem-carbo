@@ -13,6 +13,7 @@ os.makedirs("data", exist_ok=True)
 # BANCO DE DADOS (AGORA EM UMA PASTA GRAVÁVEL)
 # ---------------------------------------------------------
 engine = create_engine("sqlite:///./data/carbo.db", connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 Base = declarative_base()
