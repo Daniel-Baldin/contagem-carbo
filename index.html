@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Contagem de Carboidratos</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+
+<body>
+
+<div class="container" id="auth">
+    <h1>Contagem de Carboidratos</h1>
+    <h2>Login</h2>
+
+    <form onsubmit="event.preventDefault(); login();">
+        <input id="login_username" type="text" placeholder="Usuário" required>
+        <input id="login_senha" type="password" placeholder="Senha" required>
+        <button type="submit">Entrar</button>
+    </form>
+
+    <div id="auth_msg" class="alert"></div>
+</div>
+
+<!-- APLICAÇÃO -->
+<div id="app" style="display:none;">
+
+    <div class="container">
+        <h2>Cálculo</h2>
+
+        <form onsubmit="event.preventDefault(); calcular();">
+
+            <input id="glicemia" type="number" placeholder="Glicemia atual (VG)">
+            <input id="alvo" type="number" placeholder="Alvo glicêmico (AG)" value="120">
+            <input id="fsi" type="number" placeholder="Fator sensibilidade (FSI)" value="40">
+            <input id="fc" type="number" placeholder="Fator carbo (g/unid)" value="15">
+
+            <h3>Alimentos da refeição</h3>
+
+            <select id="alimento"></select>
+            <input id="quantidade" type="number" placeholder="Quantidade (g)">
+            <button type="button" onclick="adicionar()">Adicionar alimento</button>
+
+            <table id="tabela">
+                <thead>
+                    <tr>
+                        <th>Alimento</th>
+                        <th>Quantidade (g)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <button type="submit">Calcular dose</button>
+        </form>
+
+        <h3>Resultado</h3>
+        <pre id="resultado"></pre>
+    </div>
+
+    <div class="container">
+        <h2>Histórico</h2>
+        <button onclick="carregarHistorico()">Atualizar histórico</button>
+
+        <table id="tabela_hist">
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Glicemia</th>
+                    <th>Carbo total</th>
+                    <th>Ins. carbo</th>
+                    <th>Correção</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    const API = "http://127.0.0.1:8000";
+    let token = null;
+    let tipo = null;
+    let alimentos = [];
+
+    // LOGIN
+    async function login() {
+        const username = document.getElementById("login_username").value;
+        const senha = document.getElementById("login_senha").value;
+
+        const form = new URLSearchParams();
+        form.append("username", username);
+        form.append("password", senha);
+
+        const resp = await fetch(API + "/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: form
+        });
+
+        if (!resp.ok) {
+            document.getElementById("auth_msg").textContent = "Usuário ou senha incorretos";
+            document.getElementById("auth_msg").className = "alert alert-error";
+            return;
+        }
+
+        const dados = await resp.json();
+        token = dados.access_token;
+        tipo = dados.tipo;
+
+        document.getElementById("auth").style.display = "none";
+        document.getElementById("app").style.display = "block";
+
+        carregarLista();
+        carregarHistorico();
+    }
+
+    // LISTA DE ALIMENTOS
+    async function carregarLista() {
+        const resp = await fetch(API + "/alimentos");
+        const lista = await resp.json();
+        const select = document.getElementById("alimento");
+        select.innerHTML = "";
+        lista.forEach(item => {
+            const opt = document.createElement("option");
+            opt.value = item;
+            opt.textContent = item;
+            select.appendChild(opt);
+        });
+    }
+
+    // ADICIONAR ALIMENTO
+    function adicionar() {
+        const nome = document.getElementById("alimento").value;
+        const quantidade = Number(document.getElementById("quantidade").value);
+
+        if (!quantidade || quantidade <= 0) {
+            alert("Informe uma quantidade válida.");
+            return;
+        }
+
+        alimentos.push({ nome, quantidade });
+
+        const tbody = document.querySelector("#tabela tbody");
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${nome}</td><td>${quantidade}</td>`;
+        tbody.appendChild(tr);
+
+        document.getElementById("quantidade").value = "";
+    }
+
+    // CALCULAR
+    async function calcular() {
+        const glicemia = Number(document.getElementById("glicemia").value);
+        const alvo = Number(document.getElementById("alvo").value);
+        const fsi = Number(document.getElementById("fsi").value);
+        const fc = Number(document.getElementById("fc").value);
+
+        if (!glicemia || !alvo || !fsi || !fc || alimentos.length === 0) {
+            alert("Preencha tudo e adicione alimentos.");
+            return;
+        }
+
+        const payload = {
+            glicemia,
+            alvo,
+            fator_sensibilidade: fsi,
+            fator_carbo: fc,
+            alimentos
+        };
+
+        const resp = await fetch(API + "/calcular", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const dados = await resp.json();
+
+        document.getElementById("resultado").textContent =
+            "Carbo total: " + dados.carbo_total.toFixed(1) + " g\n" +
+            "Insulina por carbo: " + dados.insulina_carbo.toFixed(2) + " unid\n" +
+            "Correção: " + dados.correcao.toFixed(2) + " unid\n" +
+            "Dose total: " + dados.dose_total.toFixed(2) + " unid\n";
+
+        carregarHistorico();
+        alimentos = [];
+        document.querySelector("#tabela tbody").innerHTML = "";
+    }
+
+    // HISTÓRICO
+    async function carregarHistorico() {
+        const resp = await fetch(API + "/historico", {
+            headers: { "Authorization": "Bearer " + token }
+        });
+
+        const lista = await resp.json();
+        const tbody = document.querySelector("#tabela_hist tbody");
+        tbody.innerHTML = "";
+
+        lista.forEach(r => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${r.data_hora}</td>
+                <td>${r.glicemia}</td>
+                <td>${r.carbo_total.toFixed(1)}</td>
+                <td>${r.insulina_carbo.toFixed(2)}</td>
+                <td>${r.insulina_correcao.toFixed(2)}</td>
+                <td>${r.insulina_total.toFixed(2)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+</script>
+
+</body>
+</html>
