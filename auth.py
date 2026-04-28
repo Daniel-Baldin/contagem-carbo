@@ -8,7 +8,8 @@ from database import SessionLocal, User
 SECRET_KEY = "CHAVE_SUPER_SECRETA_TROCAR_DEPOIS"
 ALGORITHM = "HS256"
 
-pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+ppwd = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
+
 oauth2 = OAuth2PasswordBearer(tokenUrl="login")
 
 # ---------------------------------------------------------
