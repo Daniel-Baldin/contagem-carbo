@@ -1,4 +1,3 @@
-# main.py
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -8,12 +7,28 @@ import pandas as pd
 
 from database import SessionLocal, User, Historico
 from auth import criar_senha_hash, verificar_senha, criar_token, obter_usuario
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
 
 # ---------------------------------------------------------
 # INICIALIZA FASTAPI
 # ---------------------------------------------------------
 app = FastAPI()
 
+# ---------------------------------------------------------
+# SERVE STATIC E INDEX.HTML
+# ---------------------------------------------------------
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def home():
+    caminho = os.path.join(os.path.dirname(__file__), "index.html")
+    return FileResponse(caminho)
+
+# ---------------------------------------------------------
+# CORS
+# ---------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -60,14 +75,15 @@ class UsuarioCadastro(BaseModel):
     nome: str
     username: str
     senha: str
-    tipo: str = "user"  # padrão
+    tipo: str = "user"
 
 class EditarUsuario(BaseModel):
-    tipo: str  # "admin" ou "user"
+    tipo: str
 
 # ---------------------------------------------------------
-# ENDPOINT: CADASTRAR USUÁRIO (APENAS ADMIN)
+# ENDPOINTS (seu código continua igual)
 # ---------------------------------------------------------
+
 @app.post("/admin/usuarios")
 def criar_usuario(dados: UsuarioCadastro, admin: User = Depends(obter_usuario)):
     if admin.tipo != "admin":
@@ -90,9 +106,6 @@ def criar_usuario(dados: UsuarioCadastro, admin: User = Depends(obter_usuario)):
 
     return {"message": "Usuário criado com sucesso"}
 
-# ---------------------------------------------------------
-# ENDPOINT: LOGIN (AGORA COM USERNAME)
-# ---------------------------------------------------------
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     db = SessionLocal()
@@ -111,16 +124,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
         "tipo": user.tipo
     }
 
-# ---------------------------------------------------------
-# ENDPOINT: LISTAR ALIMENTOS
-# ---------------------------------------------------------
 @app.get("/alimentos")
 def listar_alimentos():
     return taco["alimento"].tolist()
 
-# ---------------------------------------------------------
-# FUNÇÃO: CALCULAR CARBO POR ALIMENTO
-# ---------------------------------------------------------
 def carbo_alimento(nome, quantidade):
     linha = taco[taco["alimento"] == nome]
     if linha.empty:
@@ -128,9 +135,6 @@ def carbo_alimento(nome, quantidade):
     carbo_100g = float(linha["carbo_100g"].values[0])
     return (carbo_100g / 100) * quantidade
 
-# ---------------------------------------------------------
-# ENDPOINT: CALCULAR DOSE + SALVAR HISTÓRICO
-# ---------------------------------------------------------
 @app.post("/calcular")
 def calcular(refeicao: Refeicao, user: User = Depends(obter_usuario)):
     VG = refeicao.glicemia
@@ -166,9 +170,6 @@ def calcular(refeicao: Refeicao, user: User = Depends(obter_usuario)):
         "dose_total": dose_total
     }
 
-# ---------------------------------------------------------
-# ENDPOINT: HISTÓRICO DO USUÁRIO LOGADO
-# ---------------------------------------------------------
 @app.get("/historico")
 def historico(user: User = Depends(obter_usuario)):
     db = SessionLocal()
@@ -187,9 +188,6 @@ def historico(user: User = Depends(obter_usuario)):
         for r in registros
     ]
 
-# ---------------------------------------------------------
-# ENDPOINT: LISTAR USUÁRIOS (APENAS ADMIN)
-# ---------------------------------------------------------
 @app.get("/admin/usuarios")
 def listar_usuarios(admin: User = Depends(obter_usuario)):
     if admin.tipo != "admin":
@@ -204,9 +202,6 @@ def listar_usuarios(admin: User = Depends(obter_usuario)):
         for u in users
     ]
 
-# ---------------------------------------------------------
-# ENDPOINT: EDITAR USUÁRIO (APENAS ADMIN)
-# ---------------------------------------------------------
 @app.put("/admin/usuarios/{user_id}")
 def editar_usuario(user_id: int, dados: EditarUsuario, admin: User = Depends(obter_usuario)):
     if admin.tipo != "admin":
