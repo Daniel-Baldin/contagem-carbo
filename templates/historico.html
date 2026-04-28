@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Histórico</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="dark">
+<div class="container glass fade-in">
+    <h2>Histórico de Registros</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Data/Hora</th>
+                <th>Glicemia</th>
+                <th>Carbo (g)</th>
+                <th>Insulina Total (U)</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for h in historico %}
+            <tr>
+                <td>{{ h.data_hora }}</td>
+                <td>{{ h.glicemia }}</td>
+                <td>{{ h.carbo_total }}</td>
+                <td>{{ h.insulina_total }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <button class="btn-secondary" onclick="window.location.href='/'">Voltar</button>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

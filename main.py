@@ -1,15 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List
 import pandas as pd
+import os
+
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from database import SessionLocal, User, Historico
 from auth import criar_senha_hash, verificar_senha, criar_token, obter_usuario
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-import os
 
 # ---------------------------------------------------------
 # INICIALIZA FASTAPI
@@ -17,14 +19,70 @@ import os
 app = FastAPI()
 
 # ---------------------------------------------------------
-# SERVE STATIC E INDEX.HTML
+# STATIC E TEMPLATES
 # ---------------------------------------------------------
 app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
+# ---------------------------------------------------------
+# ROTA RAIZ -> INDEX.HTML (LOGIN / SPA ANTIGA)
+# ---------------------------------------------------------
 @app.get("/")
 def home():
     caminho = os.path.join(os.path.dirname(__file__), "index.html")
     return FileResponse(caminho)
+
+# ---------------------------------------------------------
+# TELAS HTML NOVAS (PROTEGIDAS POR LOGIN)
+# ---------------------------------------------------------
+@app.get("/welcome", response_class=HTMLResponse)
+def pagina_welcome(request: Request, user: User = Depends(obter_usuario)):
+    is_admin = user.tipo == "admin"
+    return templates.TemplateResponse(
+        "welcome.html",
+        {"request": request, "user": user, "is_admin": is_admin}
+    )
+
+@app.get("/calculo", response_class=HTMLResponse)
+def pagina_calculo(request: Request, user: User = Depends(obter_usuario)):
+    return templates.TemplateResponse(
+        "calculo.html",
+        {"request": request, "user": user}
+    )
+
+@app.get("/historico", response_class=HTMLResponse)
+def pagina_historico(request: Request, user: User = Depends(obter_usuario)):
+    db = SessionLocal()
+    registros = (
+        db.query(Historico)
+        .filter(Historico.user_id == user.id)
+        .order_by(Historico.data_hora.desc())
+        .all()
+    )
+    db.close()
+    return templates.TemplateResponse(
+        "historico.html",
+        {"request": request, "user": user, "historico": registros}
+    )
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def pagina_dashboard(request: Request, user: User = Depends(obter_usuario)):
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {"request": request, "user": user}
+    )
+
+@app.get("/assinantes", response_class=HTMLResponse)
+def pagina_assinantes(request: Request, user: User = Depends(obter_usuario)):
+    if user.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+    db = SessionLocal()
+    assinantes = db.query(User).all()
+    db.close()
+    return templates.TemplateResponse(
+        "assinantes.html",
+        {"request": request, "user": user, "assinantes": assinantes}
+    )
 
 # ---------------------------------------------------------
 # CORS
@@ -36,9 +94,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# FORÇA APAGAR BANCO CORROMPIDO NO RENDER
-if os.path.exists("carbo.db"):
-    os.remove("carbo.db")
+
+# ---------------------------------------------------------
+# FORÇA APAGAR BANCO CORROMPIDO NO RENDER (AGORA NA PASTA DATA)
+# ---------------------------------------------------------
+if os.path.exists("data/carbo.db"):
+    os.remove("data/carbo.db")
 
 # ---------------------------------------------------------
 # CRIA ADMIN PADRÃO SE NÃO EXISTIR
@@ -84,9 +145,8 @@ class EditarUsuario(BaseModel):
     tipo: str
 
 # ---------------------------------------------------------
-# ENDPOINTS (seu código continua igual)
+# ENDPOINTS ADMIN USUÁRIOS
 # ---------------------------------------------------------
-
 @app.post("/admin/usuarios")
 def criar_usuario(dados: UsuarioCadastro, admin: User = Depends(obter_usuario)):
     if admin.tipo != "admin":
@@ -109,6 +169,41 @@ def criar_usuario(dados: UsuarioCadastro, admin: User = Depends(obter_usuario)):
 
     return {"message": "Usuário criado com sucesso"}
 
+@app.get("/admin/usuarios")
+def listar_usuarios(admin: User = Depends(obter_usuario)):
+    if admin.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem ver usuários")
+
+    db = SessionLocal()
+    users = db.query(User).all()
+    db.close()
+
+    return [
+        {"id": u.id, "nome": u.nome, "username": u.username, "tipo": u.tipo}
+        for u in users
+    ]
+
+@app.put("/admin/usuarios/{user_id}")
+def editar_usuario(user_id: int, dados: EditarUsuario, admin: User = Depends(obter_usuario)):
+    if admin.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem editar usuários")
+
+    db = SessionLocal()
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        db.close()
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    user.tipo = dados.tipo
+    db.commit()
+    db.close()
+
+    return {"message": "Usuário atualizado com sucesso"}
+
+# ---------------------------------------------------------
+# LOGIN
+# ---------------------------------------------------------
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     db = SessionLocal()
@@ -127,6 +222,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
         "tipo": user.tipo
     }
 
+# ---------------------------------------------------------
+# ALIMENTOS / CÁLCULO
+# ---------------------------------------------------------
 @app.get("/alimentos")
 def listar_alimentos():
     return taco["alimento"].tolist()
@@ -173,10 +271,18 @@ def calcular(refeicao: Refeicao, user: User = Depends(obter_usuario)):
         "dose_total": dose_total
     }
 
-@app.get("/historico")
-def historico(user: User = Depends(obter_usuario)):
+# ---------------------------------------------------------
+# HISTÓRICO JSON (PARA DASHBOARD / FRONT)
+# ---------------------------------------------------------
+@app.get("/api/historico")
+def historico_api(user: User = Depends(obter_usuario)):
     db = SessionLocal()
-    registros = db.query(Historico).filter(Historico.user_id == user.id).order_by(Historico.data_hora.desc()).all()
+    registros = (
+        db.query(Historico)
+        .filter(Historico.user_id == user.id)
+        .order_by(Historico.data_hora.desc())
+        .all()
+    )
     db.close()
 
     return [
@@ -190,35 +296,3 @@ def historico(user: User = Depends(obter_usuario)):
         }
         for r in registros
     ]
-
-@app.get("/admin/usuarios")
-def listar_usuarios(admin: User = Depends(obter_usuario)):
-    if admin.tipo != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem ver usuários")
-
-    db = SessionLocal()
-    users = db.query(User).all()
-    db.close()
-
-    return [
-        {"id": u.id, "nome": u.nome, "username": u.username, "tipo": u.tipo}
-        for u in users
-    ]
-
-@app.put("/admin/usuarios/{user_id}")
-def editar_usuario(user_id: int, dados: EditarUsuario, admin: User = Depends(obter_usuario)):
-    if admin.tipo != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem editar usuários")
-
-    db = SessionLocal()
-    user = db.query(User).filter(User.id == user_id).first()
-
-    if not user:
-        db.close()
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    user.tipo = dados.tipo
-    db.commit()
-    db.close()
-
-    return {"message": "Usuário atualizado com sucesso"}

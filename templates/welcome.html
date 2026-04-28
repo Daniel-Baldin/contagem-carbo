@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Contagem de Carboidratos</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="dark">
+<div class="container glass fade-in">
+    <h1>Contagem de Carboidratos</h1>
+
+    <p class="descricao">
+        Bem-vindo, <b>{{ user.nome }}</b>!<br>
+        Este sistema ajuda você a calcular a dose ideal de insulina com base na sua glicemia,
+        carboidratos ingeridos e sensibilidade, além de manter um histórico organizado
+        e um painel visual do seu controle glicêmico.
+    </p>
+
+    <div class="menu-botoes">
+        <button class="btn-primary" onclick="window.location.href='/calculo'">Calculadora</button>
+        <button class="btn-primary" onclick="window.location.href='/historico'">Histórico</button>
+        <button class="btn-primary" onclick="window.location.href='/dashboard'">Dashboard</button>
+        <button class="btn-danger" onclick="logout()">Sair</button>
+    </div>
+
+    {% if is_admin %}
+    <div class="admin-area">
+        <h3>Área Administrativa</h3>
+        <button class="btn-warning" onclick="window.location.href='/assinantes'">
+            Controle de Assinantes
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

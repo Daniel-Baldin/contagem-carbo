@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculadora</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="dark">
+<div class="container glass fade-in">
+    <h2>Calculadora de Insulina</h2>
+
+    <label for="glicemia">Glicemia atual (mg/dL):</label>
+    <input id="glicemia" type="number" placeholder="Ex: 150">
+
+    <label for="carbo">Carboidratos da refeição (g):</label>
+    <input id="carbo" type="number" placeholder="Ex: 45">
+
+    <label for="sensibilidade">Sensibilidade à insulina (mg/dL por unidade):</label>
+    <input id="sensibilidade" type="number" placeholder="Ex: 40">
+
+    <label for="relacao">Relação carboidrato/insulina:</label>
+    <input id="relacao" type="number" placeholder="Ex: 10">
+
+    <button class="btn-primary" onclick="calcular()">Calcular</button>
+
+    <div id="resultado" class="resultado"></div>
+
+    <button class="btn-secondary" onclick="window.location.href='/'">Voltar</button>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

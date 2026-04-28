@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dark">
+<div class="container glass fade-in">
+    <h2>Dashboard</h2>
+    <p class="descricao">
+        Visualize a evolução da sua glicemia, consumo de carboidratos e uso de insulina ao longo do tempo.
+    </p>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3>Glicemia (mg/dL)</h3>
+            <canvas id="chartGlicemia"></canvas>
+        </div>
+        <div class="card">
+            <h3>Carboidratos (g)</h3>
+            <canvas id="chartCarbo"></canvas>
+        </div>
+        <div class="card">
+            <h3>Insulina Total (U)</h3>
+            <canvas id="chartInsulina"></canvas>
+        </div>
+    </div>
+
+    <button class="btn-secondary" onclick="window.location.href='/'">Voltar</button>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+    carregarDashboard();
+</script>
+</body>
+</html>

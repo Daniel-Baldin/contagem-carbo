@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Assinantes</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="dark">
+<div class="container glass fade-in">
+    <h2>Controle de Assinantes</h2>
+
+    <button class="btn-primary" onclick="abrirCadastroAssinante()">Adicionar Assinante</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Usuário</th>
+                <th>Tipo</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for u in assinantes %}
+            <tr>
+                <td>{{ u.nome }}</td>
+                <td>{{ u.username }}</td>
+                <td>{{ u.tipo }}</td>
+                <td>
+                    <button class="btn-secondary" onclick="editarAssinante({{ u.id }})">Editar</button>
+                    <button class="btn-danger" onclick="excluirAssinante({{ u.id }})">Excluir</button>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <button class="btn-secondary" onclick="window.location.href='/'">Voltar</button>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
