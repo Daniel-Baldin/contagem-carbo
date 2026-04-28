@@ -86,44 +86,44 @@
 
     // LOGIN
     async function login() {
-        const usuario = document.getElementById("login_username").value;
-        const senha = document.getElementById("login_senha").value;
+    const usuario = document.getElementById("login_username").value;
+    const senha = document.getElementById("login_senha").value;
 
-        const formData = new FormData();
-        formData.append("username", usuario);
-        formData.append("password", senha);
+    const formData = new FormData();
+    formData.append("username", usuario);
+    formData.append("password", senha);
 
-        try {
-            const response = await fetch("/login", {
-                method: "POST",
-                body: formData
-            });
+    try {
+        const response = await fetch("/login", {
+            method: "POST",
+            body: formData
+        });
 
-            if (!response.ok) {
-                document.getElementById("auth_msg").textContent = "Usuário ou senha inválidos";
-                return;
-            }
-
-            const data = await response.json();
-
-            token = data.access_token;
-            tipo = data.tipo;
-
-            localStorage.setItem("token", token);
-            localStorage.setItem("tipo", tipo);
-
-            // Mostra app e esconde login
-            document.getElementById("auth").style.display = "none";
-            document.getElementById("app").style.display = "block";
-
-            carregarLista();
-            carregarHistorico();
-
-        } catch (error) {
-            console.error(error);
-            document.getElementById("auth_msg").textContent = "Erro ao conectar ao servidor";
+        if (!response.ok) {
+            document.getElementById("auth_msg").textContent = "Usuário ou senha inválidos";
+            return;
         }
+
+        const data = await response.json();
+
+        token = data.access_token;
+        tipo = data.tipo;
+
+        localStorage.setItem("token", token);
+        localStorage.setItem("tipo", tipo);
+
+        document.getElementById("auth").style.display = "none";
+        document.getElementById("app").style.display = "block";
+
+        carregarLista();
+        carregarHistorico();
+
+    } catch (error) {
+        console.error(error);
+        document.getElementById("auth_msg").textContent = "Erro ao conectar ao servidor";
     }
+}
+
 
     // LISTA DE ALIMENTOS
     async function carregarLista() {
