@@ -8,6 +8,7 @@
 
 <body>
 
+<!-- LOGIN -->
 <div class="container" id="auth">
     <h1>Contagem de Carboidratos</h1>
     <h2>Login</h2>
@@ -79,46 +80,54 @@
 </div>
 
 <script>
-    const API = "http://127.0.0.1:8000";
     let token = null;
     let tipo = null;
     let alimentos = [];
 
     // LOGIN
     async function login() {
-        const username = document.getElementById("login_username").value;
+        const usuario = document.getElementById("login_username").value;
         const senha = document.getElementById("login_senha").value;
 
-        const form = new URLSearchParams();
-        form.append("username", username);
-        form.append("password", senha);
+        const formData = new FormData();
+        formData.append("username", usuario);
+        formData.append("password", senha);
 
-        const resp = await fetch(API + "/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: form
-        });
+        try {
+            const response = await fetch("/login", {
+                method: "POST",
+                body: formData
+            });
 
-        if (!resp.ok) {
-            document.getElementById("auth_msg").textContent = "Usuário ou senha incorretos";
-            document.getElementById("auth_msg").className = "alert alert-error";
-            return;
+            if (!response.ok) {
+                document.getElementById("auth_msg").textContent = "Usuário ou senha inválidos";
+                return;
+            }
+
+            const data = await response.json();
+
+            token = data.access_token;
+            tipo = data.tipo;
+
+            localStorage.setItem("token", token);
+            localStorage.setItem("tipo", tipo);
+
+            // Mostra app e esconde login
+            document.getElementById("auth").style.display = "none";
+            document.getElementById("app").style.display = "block";
+
+            carregarLista();
+            carregarHistorico();
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById("auth_msg").textContent = "Erro ao conectar ao servidor";
         }
-
-        const dados = await resp.json();
-        token = dados.access_token;
-        tipo = dados.tipo;
-
-        document.getElementById("auth").style.display = "none";
-        document.getElementById("app").style.display = "block";
-
-        carregarLista();
-        carregarHistorico();
     }
 
     // LISTA DE ALIMENTOS
     async function carregarLista() {
-        const resp = await fetch(API + "/alimentos");
+        const resp = await fetch("/alimentos");
         const lista = await resp.json();
         const select = document.getElementById("alimento");
         select.innerHTML = "";
@@ -170,7 +179,7 @@
             alimentos
         };
 
-        const resp = await fetch(API + "/calcular", {
+        const resp = await fetch("/calcular", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -194,7 +203,7 @@
 
     // HISTÓRICO
     async function carregarHistorico() {
-        const resp = await fetch(API + "/historico", {
+        const resp = await fetch("/historico", {
             headers: { "Authorization": "Bearer " + token }
         });
 
