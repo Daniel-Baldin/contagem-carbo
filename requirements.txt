@@ -6,3 +6,4 @@ openpyxl
 passlib[bcrypt]
 python-jose
 jinja2
+sqlalchemy
