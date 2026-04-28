@@ -1,18 +1,24 @@
 # database.py
+import os
 from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 
 # ---------------------------------------------------------
-# BANCO DE DADOS
+# GARANTE QUE A PASTA DO BANCO EXISTE (Render precisa disso)
 # ---------------------------------------------------------
-engine = create_engine("sqlite:///carbo.db", connect_args={"check_same_thread": False})
+os.makedirs("data", exist_ok=True)
+
+# ---------------------------------------------------------
+# BANCO DE DADOS (AGORA EM UMA PASTA GRAVÁVEL)
+# ---------------------------------------------------------
+engine = create_engine("sqlite:///./data/carbo.db", connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 Base = declarative_base()
 
 # ---------------------------------------------------------
-# MODELO DE USUÁRIO (AGORA COM USERNAME)
+# MODELO DE USUÁRIO
 # ---------------------------------------------------------
 class User(Base):
     __tablename__ = "users"
@@ -21,7 +27,7 @@ class User(Base):
     nome = Column(String, nullable=False)
     username = Column(String, unique=True, index=True, nullable=False)
     senha_hash = Column(String, nullable=False)
-    tipo = Column(String, default="user")  # "user" ou "admin"
+    tipo = Column(String, default="user")
 
     historicos = relationship("Historico", back_populates="user")
 
