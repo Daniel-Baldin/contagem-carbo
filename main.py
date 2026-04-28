@@ -36,6 +36,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# FORÇA APAGAR BANCO CORROMPIDO NO RENDER
+if os.path.exists("carbo.db"):
+    os.remove("carbo.db")
 
 # ---------------------------------------------------------
 # CRIA ADMIN PADRÃO SE NÃO EXISTIR
