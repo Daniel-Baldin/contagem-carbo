@@ -7,12 +7,15 @@ from datetime import datetime
 # ---------------------------------------------------------
 # GARANTE QUE A PASTA DO BANCO EXISTE (Render precisa disso)
 # ---------------------------------------------------------
-os.makedirs("data", exist_ok=True)
 
-# ---------------------------------------------------------
-# BANCO DE DADOS (AGORA EM UMA PASTA GRAVÁVEL)
-# ---------------------------------------------------------
-engine = create_engine("sqlite:////./data/carbo.db", connect_args={"check_same_thread": False})
+DATA_DIR = "/opt/render/project/data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+engine = create_engine(
+    f"sqlite:///{DATA_DIR}/carbo.db",
+    connect_args={"check_same_thread": False}
+)
+
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
