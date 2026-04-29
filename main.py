@@ -27,10 +27,9 @@ templates = Jinja2Templates(directory="templates")
 # ---------------------------------------------------------
 # ROTA RAIZ -> INDEX.HTML (LOGIN / SPA ANTIGA)
 # ---------------------------------------------------------
-@app.get("/")
-def home():
-    caminho = os.path.join(os.path.dirname(__file__), "index.html")
-    return FileResponse(caminho)
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse("welcome.html", {"request": request})
 
 # ---------------------------------------------------------
 # TELAS HTML NOVAS (PROTEGIDAS POR LOGIN)
